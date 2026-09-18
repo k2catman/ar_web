@@ -11,22 +11,16 @@
     <a-scene embedded arjs>
       <!-- カメラのエンティティ -->
       <a-entity camera></a-entity>
-
-            <a-assets>
-                <!-- 眼科用顕微鏡 -->
-                <a-asset-item
-                    id="zeiss-asset"
-                    src="assets/zeiss-eye.gltf"
-                ></a-asset-item>
-      
+     
       <!-- マーカー定義 -->
       <a-marker type="pattern" url="assets/pattern-marker-zeiss.patt"> 
       <!-- glTFファイルを読み込むように変更 -->
       <a-entity
           position="0 0 0"
           rotation="0 0 0"
-          scale="1 1 1"
-      ></a-entity></a-marker>
+          scale="0.001 0.001 0.001"
+          gltf-model="mycity.glb"></a-entity>
+
     </a-scene>
   </body>
 </html>
