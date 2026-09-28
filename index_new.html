@@ -3,9 +3,8 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0, user-scalable=no, minimum-scale=1.0, maximum-scale=1.0">
-    <title>Web AR - Multi Marker Fixed</title>
+    <title>Web AR - Multi Marker Complete</title>
     
-    <!-- 読み込みに成功している安定版のライブラリ構成 -->
     <script src="https://cloudflare.com"></script>
     <script src="https://unpkg.com"></script>
 
@@ -15,10 +14,10 @@
             overflow: hidden; background-color: #000000;
         }
         /* 
-          AR.jsが自動生成、または手動で上書きするビデオ要素を
-          最背面の z-index: -2 に強制配置し、100%の画面サイズで表示させます。
+          手動配置したビデオ要素を画面いっぱいに広げ、最背面に固定配置。
+          これにより、AR.jsの自動生成バグによる黒画面を物理的に防ぎます。
         */
-        video {
+        #arjs-webcam-video {
             position: absolute !important;
             top: 0 !important;
             left: 0 !important;
@@ -35,11 +34,18 @@
 <body style="margin: 0; overflow: hidden;">
 
     <!-- 
-      外部通信バグを防ぐため、カメラパラメータデータは「Base64（Data URI形式）」を内蔵しています。
+      【重要】ブラウザの自動再生ブロックを完全に回避するための設定を網羅したビデオタグ。
+      AR.jsに自動生成させず、これを使って強制描画させます。
+    -->
+    <video id="arjs-webcam-video" autoplay playsinline webkit-playsinline muted loop></video>
+
+    <!-- 
+      sourceType: image に指定して、AR.js側の不完全な自動Webcam生成を「意図的に停止」させます。
+      カメラパラメータはBase64形式で内蔵。
     -->
     <a-scene 
         embedded 
-        arjs="sourceType: webcam; debugUIEnabled: false; videoTexture: true; cameraParametersUrl: data:text/plain;base64,QVJDbgABAAAA8D8AAAAAAMU/AAAAAAAAwD8AAAAAAAAAAAAAgD8AAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAgD8AAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAA==;"
+        arjs="sourceType: image; debugUIEnabled: false; videoTexture: true; cameraParametersUrl: data:text/plain;base64,QVJDbgABAAAA8D8AAAAAAMU/AAAAAAAAwD8AAAAAAAAAAAAAgD8AAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAgD8AAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAA==;"
         vr-mode-ui="enabled: false">
 
         <!-- 3Dモデル（Assets）の事前読み込み -->
@@ -66,31 +72,61 @@
     </a-scene>
 
     <script>
-        // 描画フリーズ（黒画面）を解決するための強制介入スクリプト
-        window.addEventListener('camera-init', (data) => {
-            console.log('camera-init', data);
-        });
+        // ページ読み込み時に、ブラウザ標準の安全な手順でカメラを起動してビデオタグに流し込む
+        window.addEventListener('DOMContentLoaded', () => {
+            const video = document.getElementById('arjs-webcam-video');
 
-        window.addEventListener('arjs-video-loaded', (data) => {
-            console.log('arjs-video-loaded', data);
-            // ビデオ要素が生成された瞬間にリサイズを走らせて描画を強制キックします
-            setTimeout(function() {
-                window.dispatchEvent(new Event('resize'));
-            }, 300);
-        });
+            const constraints = {
+                video: {
+                    facingMode: 'environment', // 背面カメラを優先
+                    width: { ideal: 1280 },
+                    height: { ideal: 720 }
+                },
+                audio: false
+            };
 
-        // シーン初期化完了時にもリサイズイベントを連打してレイアウトを確定させます
-        const sceneEl = document.querySelector('a-scene');
-        if (sceneEl) {
-            sceneEl.addEventListener('loaded', function () {
-                setTimeout(function() {
-                    window.dispatchEvent(new Event('resize'));
-                }, 500);
-                setTimeout(function() {
-                    window.dispatchEvent(new Event('resize'));
-                }, 1500);
+            navigator.mediaDevices.getUserMedia(constraints)
+            .then((stream) => {
+                video.srcObject = stream;
+                
+                // 映像が実際に再生開始されたら、AR.jsの追跡対象にこのビデオ要素を強制設定する
+                video.onloadedmetadata = () => {
+                    video.play();
+                    
+                    const sceneEl = document.querySelector('a-scene');
+                    if (sceneEl) {
+                        sceneEl.addEventListener('loaded', () => {
+                            const arSystem = sceneEl.systems.arjs;
+                            if (arSystem && arSystem.arToolkitSource) {
+                                // AR.jsの内部エンジンに手動生成のビデオ要素を直接バインド
+                                arSystem.arToolkitSource.domElement = video;
+                                arSystem.arToolkitSource.init(() => {
+                                    window.dispatchEvent(new Event('resize'));
+                                });
+                            }
+                        });
+                        
+                        // すでにシーンがロード済みのケースの対策
+                        if (sceneEl.hasLoaded) {
+                            const arSystem = sceneEl.systems.arjs;
+                            if (arSystem && arSystem.arToolkitSource) {
+                                arSystem.arToolkitSource.domElement = video;
+                                arSystem.arToolkitSource.init(() => {
+                                    window.dispatchEvent(new Event('resize'));
+                                });
+                            }
+                        }
+                    }
+                    
+                    // 画面のサイズ崩れを防ぐためのリサイズ命令
+                    setTimeout(() => { window.dispatchEvent(new Event('resize')); }, 500);
+                    setTimeout(() => { window.dispatchEvent(new Event('resize')); }, 1500);
+                };
+            })
+            .catch((err) => {
+                console.error("Camera access error:", err);
             });
-        }
+        });
     </script>
 
 </body>
