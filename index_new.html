@@ -3,12 +3,9 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0, user-scalable=no, minimum-scale=1.0, maximum-scale=1.0">
-    <title>Web AR - Multi Marker Complete</title>
+    <title>Web AR - Multi Marker Fixed</title>
     
-    <!-- 
-      【重要】ERR_NETWORK_CHANGED を引き起こす jsdelivr ドメインを完全に排除。
-      世界中で最もバックアップ網が強固な unpkg および cdnjs に接続先を全面刷新し、ネットワーク遮断を回避します。
-    -->
+    <!-- 読み込みに成功している安定版のライブラリ構成 -->
     <script src="https://cloudflare.com"></script>
     <script src="https://unpkg.com"></script>
 
@@ -18,8 +15,8 @@
             overflow: hidden; background-color: #000000;
         }
         /* 
-          AR.jsが自動生成するカメラビデオ要素を画面最背面に強制的に引き伸ばし、
-          黒画面のままフリーズするバグをCSSの最優先命令（!important）で上書き解決します。
+          AR.jsが自動生成、または手動で上書きするビデオ要素を
+          最背面の z-index: -2 に強制配置し、100%の画面サイズで表示させます。
         */
         video {
             position: absolute !important;
@@ -38,8 +35,7 @@
 <body style="margin: 0; overflow: hidden;">
 
     <!-- 
-      外部通信によるERR_TIMED_OUTを完全に防ぐため、
-      カメラパラメータデータは、安全な内蔵「Base64（Data URI形式）」のまま固定して埋め込んでいます。
+      外部通信バグを防ぐため、カメラパラメータデータは「Base64（Data URI形式）」を内蔵しています。
     -->
     <a-scene 
         embedded 
@@ -52,13 +48,13 @@
             <a-asset-item id="zeiss-model" src="./assets/zeiss-eye.gltf"></a-asset-item>
         </a-assets>
 
-        <!-- 1. Mera用のカスタムマーカー設定（ pattern-marker-mera.patt を検知すると3D表示 ） -->
+        <!-- 1. Mera用のカスタムマーカー設定 -->
         <a-marker type="pattern" url="./assets/pattern-marker-mera.patt">
             
             
         </a-marker>
 
-        <!-- 2. Zeiss用のカスタムマーカー設定（ pattern-marker-zeiss.patt を検知すると3D表示 ） -->
+        <!-- 2. Zeiss用のカスタムマーカー設定 -->
         <a-marker type="pattern" url="./assets/pattern-marker-zeiss.patt">
             
             
@@ -70,18 +66,31 @@
     </a-scene>
 
     <script>
-        /* 
-          一部のスマホブラウザで、読み込み順のズレによってカメラ描画が黒く止まるのを防ぐため、
-          ページロード完了後と、さらに1秒後に「リサイズイベント」を強制的に発生させてカメラを叩き起こします。
-        */
-        window.addEventListener('load', function() {
-            setTimeout(function() {
-                window.dispatchEvent(new Event('resize'));
-            }, 500);
-            setTimeout(function() {
-                window.dispatchEvent(new Event('resize'));
-            }, 1500);
+        // 描画フリーズ（黒画面）を解決するための強制介入スクリプト
+        window.addEventListener('camera-init', (data) => {
+            console.log('camera-init', data);
         });
+
+        window.addEventListener('arjs-video-loaded', (data) => {
+            console.log('arjs-video-loaded', data);
+            // ビデオ要素が生成された瞬間にリサイズを走らせて描画を強制キックします
+            setTimeout(function() {
+                window.dispatchEvent(new Event('resize'));
+            }, 300);
+        });
+
+        // シーン初期化完了時にもリサイズイベントを連打してレイアウトを確定させます
+        const sceneEl = document.querySelector('a-scene');
+        if (sceneEl) {
+            sceneEl.addEventListener('loaded', function () {
+                setTimeout(function() {
+                    window.dispatchEvent(new Event('resize'));
+                }, 500);
+                setTimeout(function() {
+                    window.dispatchEvent(new Event('resize'));
+                }, 1500);
+            });
+        }
     </script>
 
 </body>
