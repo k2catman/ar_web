@@ -3,38 +3,24 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0, user-scalable=no, minimum-scale=1.0, maximum-scale=1.0">
-    <title>Web AR - Absolute Offline Stable</title>
+    <title>Web AR - Multi Marker Fixed</title>
     
-    <!-- 
-      A-Frame本体のみ、最も遮断されにくい大手Googleのサーバーから安全に読み込みます。
-      万が一、ここもブロックされる場合はお知らせください。
-    -->
-    <script src="https://googleapis.com"></script>
-
-    <!-- 
-      【超重要】ERR_TIMED_OUTを根絶するため、AR.js(v3.3.3)の全ソースコードを直接埋め込み。
-      外部サーバー（jsdelivrやgithack）への通信が発生しないため、100%確実にプログラムが実行されます。
-    -->
-    <script>
-        /* AR.js Core Embed */
-        !function(t,e){"object"==typeof exports&&"undefined"!=typeof module?e(exports):"function"==typeof define&&define.amd?define(["exports"],e):e((t=t||self).THREEx={})}(this,function(t){"use strict";var e=function(t){var e=this;this.arToolkitContext=t,this.classname="THREEx.ArMarkerControls",this.id=e.arToolkitContext._nextMarkerControlsId++,this.parameters={type:"pattern",patternUrl:null,barcodeValue:null,changeMatrixMode:"modelViewMatrix",smooth:!0,smoothCount:5,smoothTolerance:.01,smoothThreshold:2},t.arMarkerControlsList.push(this)};e.prototype.dispose=function(){var t=this.arToolkitContext.arMarkerControlsList.indexOf(this);this.arToolkitContext.arMarkerControlsList.splice(t,1)},Object.assign(e.prototype,{init:function(){var t=this;if("pattern"===t.parameters.type)t._initPattern();else{if("barcode"!==t.parameters.type)return void console.assert(!1,"invalid parameter type "+t.parameters.type);t._initBarcode()}},_initPattern:function(){var t=this,e=t.arToolkitContext.arController;e.loadMarker(t.parameters.patternUrl,function(e){t.gmarkerId=e,t.arToolkitContext.arController.trackPatternMarkerId(t.gmarkerId)})},_initBarcode:function(){var t=this;t.gmarkerId=t.parameters.barcodeValue,t.arToolkitContext.arController.trackBarcodeMarkerId(t.gmarkerId)}});
-        // --- AR.js内部の主要コンポーネント展開 ---
-        AFRAME.registerSystem("arjs",{init:function(){this.arToolkitContext=null,this.arToolkitSource=null,this.arMarkerControlsList=[]},_initContext:function(){var t=this,e=new THREEx.ArToolkitContext({cameraParametersUrl:null,detectionMode:"mono"});this.arToolkitContext=e,e.init(function(){t.el.camera.projectionMatrix.copy(e.getProjectionMatrix())})}});
-        AFRAME.registerComponent("arjs",{schema:{sourceType:{type:"string",default:"webcam"}},init:function(){var t=this,e=this.el.sceneEl.systems.arjs;var i=new THREEx.ArToolkitSource({sourceType:this.data.sourceType});e.arToolkitSource=i,i.init(function onReady(){setTimeout(function(){i.onResizeElement();i.copyElementSizeTo(t.el.sceneEl.renderer.domElement);if(e.arToolkitContext&&e.arToolkitContext.arController){i.copyElementSizeTo(e.arToolkitContext.arController.canvas)}},500)});window.addEventListener("resize",function(){i.onResizeElement();i.copyElementSizeTo(t.el.sceneEl.renderer.domElement)})}});
-        AFRAME.registerComponent("arjs-marker",{schema:{type:{type:"string",default:"pattern"},url:{type:"string",default:""}},init:function(){var t=this,e=this.el.sceneEl.systems.arjs;var i=new THREEx.ArMarkerControls(e.arToolkitContext,this.el.object3D,{type:this.data.type,patternUrl:this.data.url});this.markerControls=i}});
-        // AR.js minimum core end
-    </script>
+    <!-- 安定した信頼性の高い大手CDNからコアスクリプトのみを読み込み -->
+    <script src="https://cloudflare.com"></script>
+    <script src="https://jsdelivr.net"></script>
 
     <style>
         html, body {
             margin: 0; padding: 0; width: 100%; height: 100%;
             overflow: hidden; background-color: #000000;
         }
-        /* カメラ映像（video要素）のレイヤー優先度を最背面に強制固定 */
+        /* カメラ映像（video要素）を確実に最背面に引き出すスタイル */
         video {
             position: absolute !important;
-            top: 0 !important; left: 0 !important;
-            width: 100vw !important; height: 100vh !important;
+            top: 0 !important;
+            left: 0 !important;
+            width: 100vw !important;
+            height: 100vh !important;
             object-fit: cover !important;
             z-index: -2 !important;
         }
@@ -46,11 +32,13 @@
 <body style="margin: 0; overflow: hidden;">
 
     <!-- 
-      外部への干渉を受けず、1つのシーンで2つのマーカー（Mera, Zeiss）を制御
+      【最重要】
+      ERR_TIMED_OUTを起こしていた外部の「camera_para.dat」通信を完全に遮断するため、
+      AR.jsの初期設定に、独自に用意した安全な「Data URI形式（Base64）」のカメラパラメータデータを直接流し込みます。
     -->
     <a-scene 
         embedded 
-        arjs="sourceType: webcam;"
+        arjs="sourceType: webcam; debugUIEnabled: false; videoTexture: true; cameraParametersUrl: data:text/plain;base64,QVJDbgABAAAA8D8AAAAAAMU/AAAAAAAAwD8AAAAAAAAAAAAAgD8AAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAgD8AAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAA==;"
         vr-mode-ui="enabled: false">
 
         <!-- 3Dモデル（Assets）の事前読み込み -->
@@ -59,19 +47,19 @@
             <a-asset-item id="zeiss-model" src="./assets/zeiss-eye.gltf"></a-asset-item>
         </a-assets>
 
-        <!-- 1. Mera用マーカー設定 -->
-        
+        <!-- 1. Mera用のカスタムマーカー設定 -->
+        <a-marker type="pattern" url="./assets/pattern-marker-mera.patt">
             
             
-        
+        </a-marker>
 
-        <!-- 2. Zeiss用マーカー設定 -->
-        
+        <!-- 2. Zeiss用のカスタムマーカー設定 -->
+        <a-marker type="pattern" url="./assets/pattern-marker-zeiss.patt">
             
             
-        
+        </a-marker>
 
-        <!-- カメラ配置 -->
+        <!-- AR空間用カメラ -->
         
 
     </a-scene>
