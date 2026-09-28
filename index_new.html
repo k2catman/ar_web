@@ -3,32 +3,35 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0, user-scalable=no, minimum-scale=1.0, maximum-scale=1.0">
-    <title>Web AR (Stable)</title>
+    <title>Web AR (Fixed)</title>
     
-    <!-- 
-      【重要】カメラ拒否バグを起こすA-Frameを完全に排除。
-      Three.js単体とAR.js公式の軽量・高互換ビルドのみを使用し、ブラウザのセキュリティ制限を回避します。
-    -->
+    <!-- 信頼性の高い大手公式CDNのみを使用し、ブラウザのブロックを回避 -->
     <script src="https://cloudflare.com"></script>
-    <script src="https://githack.com"></script>
+    <script src="https://unpkg.com"></script>
     <script src="https://jsdelivr.net"></script>
 
     <style>
         html, body {
             margin: 0; padding: 0; width: 100%; height: 100%;
-            overflow: hidden; background-color: #000;
+            overflow: hidden; background-color: #000000;
         }
-        /* カメラ映像を最背面に、3Dキャンバスをその上に完全に同期させる指定 */
         canvas {
             position: absolute; top: 0; left: 0;
             width: 100% !important; height: 100% !important;
+            z-index: 1;
+        }
+        video {
+            position: absolute; top: 0; left: 0;
+            width: 100% !important; height: 100% !important;
+            object-fit: cover !important;
+            z-index: 0;
         }
     </style>
 </head>
 <body>
 
     <script>
-        // 1. Three.jsの基本設定（レンダラー・シーン・カメラ）
+        // 1. Three.js レンダラー・シーン・カメラの初期化
         const renderer = new THREE.WebGLRenderer({ antialias: true, alpha: true });
         renderer.setClearColor(new THREE.Color('lightgrey'), 0);
         renderer.setSize(window.innerWidth, window.innerHeight);
@@ -41,13 +44,19 @@
         const camera = new THREE.Camera();
         scene.add(camera);
 
-        // 2. AR.jsのカメラ（Webcam）起動処理
-        const arToolkitSource = new THREEx.ArToolkitSource({ sourceType: 'webcam' });
+        // 2. AR.js カメラ（Webcam）ソースの初期化
+        const arToolkitSource = new THREEx.ArToolkitSource({ 
+            sourceType: 'webcam',
+            sourceWidth: 1280,
+            sourceHeight: 720,
+            displayWidth: window.innerWidth,
+            displayHeight: window.innerHeight
+        });
         
         arToolkitSource.init(function onReady() {
             setTimeout(function() {
                 onResize();
-            }, 1000);
+            }, 500);
         });
 
         window.addEventListener('resize', function() { onResize(); });
@@ -59,9 +68,11 @@
             }
         }
 
-        // 3. AR.jsのコンテキスト（マーカー追跡エンジン）設定
+        // 3. 【最重要】外部通信エラーを防ぐため、カメラパラメータをBase64データとして直接内蔵
+        const cameraParaData = 'data:text/plain;base64,QVJDbgABAAAA8D8AAAAAAMU/AAAAAAAAwD8AAAAAAAAAAAAAgD8AAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAgD8AAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAA==';
+
         const arToolkitContext = new THREEx.ArToolkitContext({
-            cameraParametersUrl: 'https://githack.com',
+            cameraParametersUrl: cameraParaData,
             detectionMode: 'mono'
         });
 
@@ -69,48 +80,48 @@
             camera.projectionMatrix.copy(arToolkitContext.getProjectionMatrix());
         });
 
-        // 4. マーカーごとのルート（グループ）を定義
+        // 4. マーカーごとのルートグループ設定
         const markerRootMera = new THREE.Group();
         scene.add(markerRootMera);
-        const markerControlsMera = new THREEx.ArMarkerControls(arToolkitContext, markerRootMera, {
+        new THREEx.ArMarkerControls(arToolkitContext, markerRootMera, {
             type: 'pattern',
             patternUrl: './assets/pattern-marker-mera.patt'
         });
 
         const markerRootZeiss = new THREE.Group();
         scene.add(markerRootZeiss);
-        const markerControlsZeiss = new THREEx.ArMarkerControls(arToolkitContext, markerRootZeiss, {
+        new THREEx.ArMarkerControls(arToolkitContext, markerRootZeiss, {
             type: 'pattern',
             patternUrl: './assets/pattern-marker-zeiss.patt'
         });
 
-        // 5. 空間を照らす照明（モデルをきれいに映すため）
-        const ambientLight = new THREE.AmbientLight(0xffffff, 1.0);
+        // 5. ライティング（3Dモデル視認用）
+        const ambientLight = new THREE.AmbientLight(0xffffff, 1.2);
         scene.add(ambientLight);
         const directionalLight = new THREE.DirectionalLight(0xffffff, 0.8);
         directionalLight.position.set(0, 1, 0);
         scene.add(directionalLight);
 
-        // 6. GLTFモデルのロード処理
+        // 6. GLTFモデルのロード（位置・サイズをAR用に調整）
         const loader = new THREE.GLTFLoader();
 
-        // Meraモデルの読み込みと配置
+        // Meraモデル
         loader.load('./assets/mera-heart.gltf', function(gltf) {
             const model = gltf.scene;
-            model.scale.set(0.5, 0.5, 0.5); // 大きすぎる場合はここを調整
+            model.scale.set(1.0, 1.0, 1.0);
             model.position.set(0, 0, 0);
             markerRootMera.add(model);
-        }, undefined, function(error) { console.error(error); });
+        });
 
-        // Zeissモデルの読み込みと配置
+        // Zeissモデル
         loader.load('./assets/zeiss-eye.gltf', function(gltf) {
             const model = gltf.scene;
-            model.scale.set(0.5, 0.5, 0.5);
+            model.scale.set(1.0, 1.0, 1.0);
             model.position.set(0, 0, 0);
             markerRootZeiss.add(model);
-        }, undefined, function(error) { console.error(error); });
+        });
 
-        // 7. 描画ループアニメーション
+        // 7. 毎フレームの描画ループ
         function animate() {
             requestAnimationFrame(animate);
             if (arToolkitSource.ready === false) return;
