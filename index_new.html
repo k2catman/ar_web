@@ -3,35 +3,57 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0, user-scalable=no, minimum-scale=1.0, maximum-scale=1.0">
-    <title>Web AR Debug</title>
-    
-    <!-- 画面上にエラーを強制出力するスクリプト -->
-    <script>
-        window.onerror = function(msg, url, lineNo, columnNo, error) {
-            var debugDiv = document.getElementById('debug-log');
-            if (debugDiv) {
-                debugDiv.innerHTML += '<div style="color:red; margin-bottom:10px;">[Error] ' + msg + ' (Line: ' + lineNo + ')</div>';
-            }
-            return false;
-        };
-        window.addEventListener('unhandledrejection', function(event) {
-            var debugDiv = document.getElementById('debug-log');
-            if (debugDiv) {
-                debugDiv.innerHTML += '<div style="color:orange; margin-bottom:10px;">[Promise Reject] ' + event.reason + '</div>';
-            }
-        });
-    </script>
-
+    <title>Web AR</title>
     <script src="https://cloudflare.com"></script>
     <script src="https://unpkg.com"></script>
+    <style>
+        /* 起動用スタート画面のスタイル */
+        #start-overlay {
+            position: fixed;
+            top: 0;
+            left: 0;
+            width: 100%;
+            height: 100%;
+            background-color: rgba(255, 255, 255, 0.95);
+            z-index: 999999;
+            display: flex;
+            flex-direction: column;
+            justify-content: center;
+            align-items: center;
+        }
+        #start-button {
+            padding: 20px 40px;
+            font-size: 20px;
+            font-weight: bold;
+            background-color: #007AFF;
+            color: white;
+            border: none;
+            border-radius: 10px;
+            cursor: pointer;
+            box-shadow: 0 4px 6px rgba(0,0,0,0.1);
+        }
+        #start-button:active {
+            background-color: #0051A8;
+        }
+        #status-text {
+            margin-top: 20px;
+            font-size: 14px;
+            color: #666;
+        }
+    </style>
 </head>
 <body style="margin: 0; overflow: hidden; font-family: sans-serif;">
 
-    <!-- エラーログ表示用エリア（最前面に表示） -->
-    <div id="debug-log" style="position: fixed; top: 10px; left: 10px; width: calc(100% - 20px); max-height: 200px; overflow-y: auto; background: rgba(0,0,0,0.8); color: white; padding: 10px; font-size: 12px; z-index: 999999; border-radius: 5px; word-break: break-all;">
-        [Debug Mode] エラーを待機中...<br>
+    <!-- タップを強制してカメラのセキュリティ制限を解除するオーバーレイ画面 -->
+    <div id="start-overlay">
+        <button id="start-button" onclick="startAR()">ARカメラを起動する</button>
+        <div id="status-text">ボタンをタップしてカメラを許可してください</div>
     </div>
 
+    <!-- 
+      初期状態ではソースを何も指定せず空の動画オブジェクトを用意し、
+      ボタン押下後にJavaScriptでWebcamを流し込む。
+    -->
     <a-scene 
         embedded 
         arjs="sourceType: webcam; debugUIEnabled: false; videoTexture: true; deviceOrientationEnabled: false;"
@@ -55,6 +77,33 @@
         
 
     </a-scene>
+
+    <script>
+        function startAR() {
+            var status = document.getElementById('status-text');
+            status.innerText = 'カメラを初期化中...';
+
+            // ユーザーのタップをトリガーに、ブラウザのメディア機能へ明示的にリクエストを投げる
+            if (navigator.mediaDevices && navigator.mediaDevices.getUserMedia) {
+                navigator.mediaDevices.getUserMedia({ video: { facingMode: 'environment' } })
+                .then(function(stream) {
+                    // カメラ許可が降りたらスタート画面を消し、AR.jsにカメラを引き渡す
+                    document.getElementById('start-overlay').style.display = 'none';
+                    
+                    // ストリームを適用させるためにARシーンへリサイズイベントを通知
+                    window.dispatchEvent(new Event('resize'));
+                })
+                .catch(function(err) {
+                    status.style.color = 'red';
+                    status.innerText = 'カメラの起動に失敗しました: ' + err.name + ' - ' + err.message;
+                    console.error(err);
+                });
+            } else {
+                status.style.color = 'red';
+                status.innerText = 'お使いのブラウザはARカメラに対応していません。';
+            }
+        }
+    </script>
 
 </body>
 </html>
