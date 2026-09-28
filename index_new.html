@@ -4,59 +4,46 @@
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0, user-scalable=no, minimum-scale=1.0, maximum-scale=1.0">
     <title>Web AR</title>
+    
+    <!-- 安定動作実績の高いライブラリ組み合わせ -->
     <script src="https://cloudflare.com"></script>
     <script src="https://unpkg.com"></script>
+    
     <style>
+        body { margin: 0; overflow: hidden; font-family: sans-serif; background-color: #000; }
+        
         /* 起動用スタート画面のスタイル */
         #start-overlay {
-            position: fixed;
-            top: 0;
-            left: 0;
-            width: 100%;
-            height: 100%;
-            background-color: rgba(255, 255, 255, 0.95);
-            z-index: 999999;
-            display: flex;
-            flex-direction: column;
-            justify-content: center;
-            align-items: center;
+            position: fixed; top: 0; left: 0; width: 100%; height: 100%;
+            background-color: #ffffff; z-index: 999999;
+            display: flex; flex-direction: column; justify-content: center; align-items: center;
         }
         #start-button {
-            padding: 20px 40px;
-            font-size: 20px;
-            font-weight: bold;
-            background-color: #007AFF;
-            color: white;
-            border: none;
-            border-radius: 10px;
-            cursor: pointer;
-            box-shadow: 0 4px 6px rgba(0,0,0,0.1);
+            padding: 20px 40px; font-size: 20px; font-weight: bold;
+            background-color: #007AFF; color: white; border: none; border-radius: 10px;
+            cursor: pointer; box-shadow: 0 4px 6px rgba(0,0,0,0.1);
         }
-        #start-button:active {
-            background-color: #0051A8;
-        }
-        #status-text {
-            margin-top: 20px;
-            font-size: 14px;
-            color: #666;
-        }
+        #status-text { margin-top: 20px; font-size: 14px; color: #666; }
+        
+        /* AR.jsが自動生成するビデオとの競合を防ぐため、手動生成ビデオは隠す */
+        #webcam-video { display: none; }
     </style>
 </head>
-<body style="margin: 0; overflow: hidden; font-family: sans-serif;">
+<body>
 
-    <!-- タップを強制してカメラのセキュリティ制限を解除するオーバーレイ画面 -->
+    <!-- タップ操作用のオーバーレイ画面 -->
     <div id="start-overlay">
-        <button id="start-button" onclick="startAR()">ARカメラを起動する</button>
+        <button id="start-button" onclick="initCameraAR()">ARカメラを起動する</button>
         <div id="status-text">ボタンをタップしてカメラを許可してください</div>
     </div>
 
-    <!-- 
-      初期状態ではソースを何も指定せず空の動画オブジェクトを用意し、
-      ボタン押下後にJavaScriptでWebcamを流し込む。
-    -->
+    <!-- カメラ映像を一度ここにバインドさせてフリーズを防ぐ -->
+    <video id="webcam-video" autoplay playsinline muted></video>
+
+    <!-- ARシーン本体（sourceType: image にして自動起動を完全に抑止） -->
     <a-scene 
         embedded 
-        arjs="sourceType: webcam; debugUIEnabled: false; videoTexture: true; deviceOrientationEnabled: false;"
+        arjs="sourceType: image; debugUIEnabled: false; videoTexture: true;"
         vr-mode-ui="enabled: false">
 
         <a-assets>
@@ -64,11 +51,13 @@
             <a-asset-item id="zeiss-model" src="./assets/zeiss-eye.gltf"></a-asset-item>
         </a-assets>
 
+        <!-- 1. Mera用のカスタムマーカー設定 -->
         <a-marker type="pattern" url="./assets/pattern-marker-mera.patt">
             
             
         </a-marker>
 
+        <!-- 2. Zeiss用のカスタムマーカー設定 -->
         <a-marker type="pattern" url="./assets/pattern-marker-zeiss.patt">
             
             
@@ -79,29 +68,58 @@
     </a-scene>
 
     <script>
-        function startAR() {
+        function initCameraAR() {
             var status = document.getElementById('status-text');
-            status.innerText = 'カメラを初期化中...';
+            status.innerText = 'カメラを起動中...';
 
-            // ユーザーのタップをトリガーに、ブラウザのメディア機能へ明示的にリクエストを投げる
-            if (navigator.mediaDevices && navigator.mediaDevices.getUserMedia) {
-                navigator.mediaDevices.getUserMedia({ video: { facingMode: 'environment' } })
-                .then(function(stream) {
-                    // カメラ許可が降りたらスタート画面を消し、AR.jsにカメラを引き渡す
+            var constraints = {
+                video: {
+                    facingMode: 'environment',
+                    width: { ideal: 1280 },
+                    height: { ideal: 720 }
+                },
+                audio: false
+            };
+
+            // 1. まずブラウザ標準機能でカメラ映像を完全にキャッチする
+            navigator.mediaDevices.getUserMedia(constraints)
+            .then(function(stream) {
+                var video = document.getElementById('webcam-video');
+                video.srcObject = stream;
+                
+                // 2. ビデオの再生が実際に始まるのを待つ
+                video.onloadedmetadata = function() {
+                    video.play();
+                    
+                    // 3. 映像が裏で動き出したら、AR.jsの制御オブジェクトへ直接ストリームを注入して起動
+                    var sceneEl = document.querySelector('a-scene');
+                    var arSystem = sceneEl.systems.arjs;
+                    
+                    if (arSystem) {
+                        // AR.jsのソースタイプをwebcamに切り替えて内部初期化を実行
+                        arSystem._arToolset.ready(function() {
+                            // 既存の真っ白な画面バグを回避するため、AR.jsに手動でビデオ要素を登録
+                            arSystem.arToolkitSource.domElement = video;
+                            arSystem.arToolkitSource.init(function onReady(){
+                                window.dispatchEvent(new Event('resize'));
+                            });
+                        });
+                    }
+
+                    // 4. すべての準備が整ったらスタート画面を非表示にする
                     document.getElementById('start-overlay').style.display = 'none';
                     
-                    // ストリームを適用させるためにARシーンへリサイズイベントを通知
-                    window.dispatchEvent(new Event('resize'));
-                })
-                .catch(function(err) {
-                    status.style.color = 'red';
-                    status.innerText = 'カメラの起動に失敗しました: ' + err.name + ' - ' + err.message;
-                    console.error(err);
-                });
-            } else {
+                    // 最後に描画のズレを防ぐためリサイズを強制
+                    setTimeout(function() {
+                        window.dispatchEvent(new Event('resize'));
+                    }, 500);
+                };
+            })
+            .catch(function(err) {
                 status.style.color = 'red';
-                status.innerText = 'お使いのブラウザはARカメラに対応していません。';
-            }
+                status.innerText = 'エラーが発生しました: ' + err.message;
+                console.error(err);
+            });
         }
     </script>
 
