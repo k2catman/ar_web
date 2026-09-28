@@ -3,11 +3,34 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0, user-scalable=no, minimum-scale=1.0, maximum-scale=1.0">
-    <title>Web AR</title>
+    <title>Web AR Debug</title>
+    
+    <!-- 画面上にエラーを強制出力するスクリプト -->
+    <script>
+        window.onerror = function(msg, url, lineNo, columnNo, error) {
+            var debugDiv = document.getElementById('debug-log');
+            if (debugDiv) {
+                debugDiv.innerHTML += '<div style="color:red; margin-bottom:10px;">[Error] ' + msg + ' (Line: ' + lineNo + ')</div>';
+            }
+            return false;
+        };
+        window.addEventListener('unhandledrejection', function(event) {
+            var debugDiv = document.getElementById('debug-log');
+            if (debugDiv) {
+                debugDiv.innerHTML += '<div style="color:orange; margin-bottom:10px;">[Promise Reject] ' + event.reason + '</div>';
+            }
+        });
+    </script>
+
     <script src="https://cloudflare.com"></script>
     <script src="https://unpkg.com"></script>
 </head>
 <body style="margin: 0; overflow: hidden; font-family: sans-serif;">
+
+    <!-- エラーログ表示用エリア（最前面に表示） -->
+    <div id="debug-log" style="position: fixed; top: 10px; left: 10px; width: calc(100% - 20px); max-height: 200px; overflow-y: auto; background: rgba(0,0,0,0.8); color: white; padding: 10px; font-size: 12px; z-index: 999999; border-radius: 5px; word-break: break-all;">
+        [Debug Mode] エラーを待機中...<br>
+    </div>
 
     <a-scene 
         embedded 
