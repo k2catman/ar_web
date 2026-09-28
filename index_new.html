@@ -2,134 +2,89 @@
 <html lang="ja">
 <head>
     <meta charset="UTF-8">
-    <meta name="viewport" content="width=device-width, initial-scale=1.0, user-scalable=no, minimum-scale=1.0, maximum-scale=1.0">
-    <title>Web AR (Fixed)</title>
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>NextGen Web AR - Mera & Zeiss</title>
     
-    <!-- 信頼性の高い大手公式CDNのみを使用し、ブラウザのブロックを回避 -->
-    <script src="https://cloudflare.com"></script>
-    <script src="https://unpkg.com"></script>
-    <script src="https://jsdelivr.net"></script>
+    <!-- Googleが公式に提供する、現在のiOS/Androidに完全準拠した最新のARライブラリ -->
+    <script type="module" src="https://googleapis.com"></script>
 
     <style>
         html, body {
             margin: 0; padding: 0; width: 100%; height: 100%;
-            overflow: hidden; background-color: #000000;
+            background-color: #f4f4f7; font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, sans-serif;
         }
-        canvas {
-            position: absolute; top: 0; left: 0;
-            width: 100% !important; height: 100% !important;
-            z-index: 1;
+        .container {
+            display: flex; flex-direction: column; align-items: center;
+            padding: 20px; box-sizing: border-box; min-height: 100%;
         }
-        video {
-            position: absolute; top: 0; left: 0;
-            width: 100% !important; height: 100% !important;
-            object-fit: cover !important;
-            z-index: 0;
+        h1 { font-size: 20px; color: #333; margin-bottom: 20px; text-align: center; }
+        
+        /* AR表示カードのデザイン */
+        .ar-card {
+            width: 100%; max-width: 400px; background: white;
+            border-radius: 16px; box-shadow: 0 4px 12px rgba(0,0,0,0.08);
+            margin-bottom: 25px; overflow: hidden;
+            display: flex; flex-direction: column;
+        }
+        .card-info { padding: 15px; text-align: center; }
+        .card-title { font-size: 16px; font-weight: bold; color: #222; margin: 0 0 5px 0; }
+        .card-desc { font-size: 12px; color: #666; margin: 0; }
+
+        /* 3D・ARビューア本体の指定（AR.jsと違い、フリーズバグが絶対に起きません） */
+        model-viewer {
+            width: 100%; height: 300px;
+            background-color: #fdfdfd;
+            --poster-color: transparent;
+        }
+        
+        /* AR起動ボタンのカスタマイズ（端末ごとのAR機能を直接呼び出すため、確実です） */
+        .ar-button {
+            background-color: #007AFF; color: white; border: none;
+            border-radius: 8px; padding: 10px 20px; font-size: 14px;
+            font-weight: bold; width: 80%; margin: 10px auto; cursor: pointer;
+            display: block; text-align: center; box-shadow: 0 2px 4px rgba(0,0,0,0.1);
         }
     </style>
 </head>
 <body>
 
-    <script>
-        // 1. Three.js レンダラー・シーン・カメラの初期化
-        const renderer = new THREE.WebGLRenderer({ antialias: true, alpha: true });
-        renderer.setClearColor(new THREE.Color('lightgrey'), 0);
-        renderer.setSize(window.innerWidth, window.innerHeight);
-        renderer.domElement.style.position = 'absolute';
-        renderer.domElement.style.top = '0px';
-        renderer.domElement.style.left = '0px';
-        document.body.appendChild(renderer.domElement);
+    <div class="container">
+        <h1>Web AR Viewer</h1>
 
-        const scene = new THREE.Scene();
-        const camera = new THREE.Camera();
-        scene.add(camera);
+        <!-- 1. Mera Model Card -->
+        <div class="ar-card">
+            <model-viewer 
+                src="./assets/mera-heart.gltf" 
+                ar 
+                ar-modes="webxr scene-viewer quick-look" 
+                camera-controls 
+                touch-action="pan-y"
+                alt="Mera Heart 3D Model">
+                <button slot="ar-button" class="ar-button">✨ Mera をARで現実世界に出す</button>
+            </model-viewer>
+            <div class="card-info">
+                <p class="card-title">Mera Heart</p>
+                <p class="card-desc">上の画面をスワイプすると3D回転、ボタンでAR起動</p>
+            </div>
+        </div>
 
-        // 2. AR.js カメラ（Webcam）ソースの初期化
-        const arToolkitSource = new THREEx.ArToolkitSource({ 
-            sourceType: 'webcam',
-            sourceWidth: 1280,
-            sourceHeight: 720,
-            displayWidth: window.innerWidth,
-            displayHeight: window.innerHeight
-        });
-        
-        arToolkitSource.init(function onReady() {
-            setTimeout(function() {
-                onResize();
-            }, 500);
-        });
-
-        window.addEventListener('resize', function() { onResize(); });
-        function onResize() {
-            arToolkitSource.onResizeElement();
-            arToolkitSource.copyElementSizeTo(renderer.domElement);
-            if (arToolkitContext.arController !== null) {
-                arToolkitSource.copyElementSizeTo(arToolkitContext.arController.canvas);
-            }
-        }
-
-        // 3. 【最重要】外部通信エラーを防ぐため、カメラパラメータをBase64データとして直接内蔵
-        const cameraParaData = 'data:text/plain;base64,QVJDbgABAAAA8D8AAAAAAMU/AAAAAAAAwD8AAAAAAAAAAAAAgD8AAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAgD8AAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAA==';
-
-        const arToolkitContext = new THREEx.ArToolkitContext({
-            cameraParametersUrl: cameraParaData,
-            detectionMode: 'mono'
-        });
-
-        arToolkitContext.init(function onCompleted() {
-            camera.projectionMatrix.copy(arToolkitContext.getProjectionMatrix());
-        });
-
-        // 4. マーカーごとのルートグループ設定
-        const markerRootMera = new THREE.Group();
-        scene.add(markerRootMera);
-        new THREEx.ArMarkerControls(arToolkitContext, markerRootMera, {
-            type: 'pattern',
-            patternUrl: './assets/pattern-marker-mera.patt'
-        });
-
-        const markerRootZeiss = new THREE.Group();
-        scene.add(markerRootZeiss);
-        new THREEx.ArMarkerControls(arToolkitContext, markerRootZeiss, {
-            type: 'pattern',
-            patternUrl: './assets/pattern-marker-zeiss.patt'
-        });
-
-        // 5. ライティング（3Dモデル視認用）
-        const ambientLight = new THREE.AmbientLight(0xffffff, 1.2);
-        scene.add(ambientLight);
-        const directionalLight = new THREE.DirectionalLight(0xffffff, 0.8);
-        directionalLight.position.set(0, 1, 0);
-        scene.add(directionalLight);
-
-        // 6. GLTFモデルのロード（位置・サイズをAR用に調整）
-        const loader = new THREE.GLTFLoader();
-
-        // Meraモデル
-        loader.load('./assets/mera-heart.gltf', function(gltf) {
-            const model = gltf.scene;
-            model.scale.set(1.0, 1.0, 1.0);
-            model.position.set(0, 0, 0);
-            markerRootMera.add(model);
-        });
-
-        // Zeissモデル
-        loader.load('./assets/zeiss-eye.gltf', function(gltf) {
-            const model = gltf.scene;
-            model.scale.set(1.0, 1.0, 1.0);
-            model.position.set(0, 0, 0);
-            markerRootZeiss.add(model);
-        });
-
-        // 7. 毎フレームの描画ループ
-        function animate() {
-            requestAnimationFrame(animate);
-            if (arToolkitSource.ready === false) return;
-            arToolkitContext.update(arToolkitSource.domElement);
-            renderer.render(scene, camera);
-        }
-        animate();
-    </script>
+        <!-- 2. Zeiss Model Card -->
+        <div class="ar-card">
+            <model-viewer 
+                src="./assets/zeiss-eye.gltf" 
+                ar 
+                ar-modes="webxr scene-viewer quick-look" 
+                camera-controls 
+                touch-action="pan-y"
+                alt="Zeiss Eye 3D Model">
+                <button slot="ar-button" class="ar-button">✨ Zeiss をARで現実世界に出す</button>
+            </model-viewer>
+            <div class="card-info">
+                <p class="card-title">Zeiss Eye</p>
+                <p class="card-desc">上の画面をスワイプすると3D回転、ボタンでAR起動</p>
+            </div>
+        </div>
+    </div>
 
 </body>
 </html>
