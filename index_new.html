@@ -13,7 +13,61 @@
 </head>
 <body style="margin: 0; overflow: hidden; font-family: sans-serif;">
 
+    <!-- <!DOCTYPE html>
+<html lang="ja">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0, user-scalable=no, minimum-scale=1.0, maximum-scale=1.0">
+    <title>Web AR - Mera & Zeiss</title>
+    
     <!-- 
+      【重要】エラーの原因だった githack を完全に排除。
+      iOSとAndroidのブラウザ制限を完全にクリアする「A-Frame 1.3.0」と「AR.js 3.4.5 (公式ビルド)」の
+      最もトラブルが少ない、実績のある固定バージョン組み合わせを採用。
+    -->
+    <script src="https://cloudflare.com"></script>
+    <script src="https://unpkg.com"></script>
+</head>
+<body style="margin: 0; overflow: hidden; font-family: sans-serif;">
+
+    <!-- 
+      ARシーンの設定:
+      - videoTexture: true（iOSでの真っ白フリーズを防ぐ必須設定）
+      - deviceOrientationEnabled: false（不要なセンサーエラーの防止）
+    -->
+    <a-scene 
+        embedded 
+        arjs="sourceType: webcam; debugUIEnabled: false; videoTexture: true; deviceOrientationEnabled: false;"
+        vr-mode-ui="enabled: false">
+
+        <!-- 3Dモデル資産（Assets）の事前読み込み -->
+        <a-assets>
+            <a-asset-item id="mera-model" src="./assets/mera-heart.gltf"></a-asset-item>
+            <a-asset-item id="zeiss-model" src="./assets/zeiss-eye.gltf"></a-asset-item>
+        </a-assets>
+
+        <!-- 1. Mera用のカスタムマーカー設定 -->
+        <a-marker type="pattern" url="./assets/pattern-marker-mera.patt">
+            <!-- 3Dモデルの配置 -->
+            
+            
+        </a-marker>
+
+        <!-- 2. Zeiss用のカスタムマーカー設定 -->
+        <a-marker type="pattern" url="./assets/pattern-marker-zeiss.patt">
+            <!-- 3Dモデルの配置 -->
+            
+            
+        </a-marker>
+
+        <!-- AR用のカメラ配置 -->
+        
+
+    </a-scene>
+
+</body>
+</html>
+
       ARシーンの設定:
       - videoTexture: true (iOSでの画面真っ白・フリーズを防ぐ必須設定)
       - sourceWidth / sourceHeight (カメラ解像度を固定して起動を安定化)
