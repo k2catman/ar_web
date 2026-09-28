@@ -3,8 +3,9 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0, user-scalable=no, minimum-scale=1.0, maximum-scale=1.0">
-    <title>Web AR - Multi Marker Fixed</title>
+    <title>Web AR - Multi Marker Final</title>
     
+    <!-- 読み込みに成功している安定版のライブラリ構成 -->
     <script src="https://cloudflare.com"></script>
     <script src="https://unpkg.com"></script>
 
@@ -15,18 +16,20 @@
             overflow: hidden; background-color: #000000;
         }
         /* 
-          【映像ズレ完全修正CSS】
-          iPhoneやPCの画面サイズに関わらず、カメラ映像（video）と、
-          3Dを描画する画面（a-canvas）を、完全に画面中央（0,0）から100%のサイズで強制同期させます。
+          【無限リサイズループ対策CSS】
+          AR.jsのバグによるサイズ迷子を防ぐため、カメラ映像（video）と
+          A-Frameの描画領域（a-canvas）の大きさを「画面全体」に物理的に完全固定します。
         */
-        video, .a-canvas {
-            position: absolute !important;
+        video, .a-canvas, a-scene {
+            position: fixed !important;
             top: 0 !important;
             left: 0 !important;
             width: 100vw !important;
             height: 100vh !important;
             object-fit: cover !important;
             box-sizing: border-box !important;
+            margin: 0 !important;
+            padding: 0 !important;
         }
         video {
             z-index: -2 !important;
@@ -38,12 +41,13 @@
 </head>
 <body style="margin: 0; overflow: hidden;">
 
-    <!-- ブラウザの自動再生ブロックを回避するビデオタグ -->
+    <!-- ブラウザの自動再生ブロックを回避するビデオタグ（あらかじめHTMLに配置） -->
     <video id="arjs-webcam-video" autoplay playsinline webkit-playsinline muted loop></video>
 
     <!-- 
       ARシーン設定:
-      sourceType: image に指定して、AR.js側の不完全な自動Webcam生成（サイズズレの元凶）を停止させます。
+      - sourceType: image に指定して、AR.js側の不完全な自動Webcam生成（リサイズバグの主犯）を停止
+      - 無限ループの原因になる内蔵リサイズ処理を妨害するため、明示的にサイズを指定
     -->
     <a-scene 
         embedded 
@@ -58,7 +62,7 @@
 
         <!-- 1. Mera用のカスタムマーカー設定 -->
         <a-marker type="pattern" url="./assets/pattern-marker-mera.patt">
-            <!-- 浮かび上がる3Dモデル（サイズが小さくて見失わないよう、初期設定を少し大きめの「1」に固定） -->
+            <!-- 浮かび上がる3Dモデル。万が一ズレていても見つけやすいよう少し大きめ（scale="1"）に設定 -->
             
             
         </a-marker>
@@ -75,15 +79,15 @@
     </a-scene>
 
     <script>
-        // カメラ映像をキャッチして、サイズを強制補正しながらAR.jsにバインドする処理
         window.addEventListener('DOMContentLoaded', () => {
             const video = document.getElementById('arjs-webcam-video');
 
+            // スマホやPCの画面解像度に合わせて最適なカメラ出力を要求
             const constraints = {
                 video: {
-                    facingMode: 'environment', // スマホは背面カメラ
-                    width: { ideal: 1280 },
-                    height: { ideal: 720 }
+                    facingMode: 'environment',
+                    width: { ideal: window.innerWidth > window.innerHeight ? window.innerWidth : window.innerHeight },
+                    height: { ideal: window.innerWidth > window.innerHeight ? window.innerHeight : window.innerWidth }
                 },
                 audio: false
             };
@@ -96,28 +100,39 @@
                     video.play();
                     
                     const sceneEl = document.querySelector('a-scene');
-                    if (sceneEl) {
-                        const initToolkit = () => {
-                            const arSystem = sceneEl.systems.arjs;
-                            if (arSystem && arSystem.arToolkitSource) {
-                                arSystem.arToolkitSource.domElement = video;
-                                arSystem.arToolkitSource.init(() => {
-                                    // 映像がズレるバグを殺すため、リサイズイベントを即時実行
-                                    window.dispatchEvent(new Event('resize'));
-                                });
-                            }
-                        };
-
-                        if (sceneEl.hasLoaded) {
-                            initToolkit();
-                        } else {
-                            sceneEl.addEventListener('loaded', initToolkit);
-                        }
-                    }
                     
-                    // 読み込み完了後に時間差でリサイズを連打し、強制的に全画面フィットさせます
-                    setTimeout(() => { window.dispatchEvent(new Event('resize')); }, 300);
-                    setTimeout(() => { window.dispatchEvent(new Event('resize')); }, 1000);
+                    // AR.jsが画面を壊すリサイズ処理を上書きして乗っ取る関数
+                    const forceLockLayout = () => {
+                        const canvas = sceneEl.querySelector('.a-canvas');
+                        if (canvas) {
+                            canvas.style.setProperty('width', '100vw', 'important');
+                            canvas.style.setProperty('height', '100vh', 'important');
+                        }
+                        video.style.setProperty('width', '100vw', 'important');
+                        video.style.setProperty('height', '100vh', 'important');
+                    };
+
+                    const initToolkit = () => {
+                        const arSystem = sceneEl.systems.arjs;
+                        if (arSystem && arSystem.arToolkitSource) {
+                            // AR.jsの内部エンジンに、正しく起動したビデオ要素を強制連結
+                            arSystem.arToolkitSource.domElement = video;
+                            arSystem.arToolkitSource.init(() => {
+                                forceLockLayout();
+                                window.dispatchEvent(new Event('resize'));
+                            });
+                        }
+                    };
+
+                    if (sceneEl.hasLoaded) {
+                        initToolkit();
+                    } else {
+                        sceneEl.addEventListener('loaded', initToolkit);
+                    }
+
+                    // AR.jsがバグで勝手にサイズを変えるのを監視し、全画面に引き戻し続ける
+                    window.addEventListener('resize', forceLockLayout);
+                    setInterval(forceLockLayout, 500); 
                 };
             })
             .catch((err) => {
