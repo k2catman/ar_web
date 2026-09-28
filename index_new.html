@@ -5,30 +5,32 @@
     <meta name="viewport" content="width=device-width, initial-scale=1.0, user-scalable=no, minimum-scale=1.0, maximum-scale=1.0">
     <title>Web AR - Multi Marker Complete</title>
     
-    <!-- 一瞬でも映像が映った実績のある、最も互換性の高いライブラリ構成に戻します -->
+    <!-- 安定版のライブラリ構成 -->
     <script src="https://cloudflare.com"></script>
     <script src="https://unpkg.com"></script>
 
     <style>
-        /* 画面全体の余白を削り、黒画面化を防ぐ */
+        /* 画面全体の余白をゼロにし、スクロールを完全に禁止 */
         html, body {
-            margin: 0; padding: 0; width: 100%; height: 100%;
-            overflow: hidden; background-color: #000000;
+            margin: 0;
+            padding: 0;
+            width: 100%;
+            height: 100%;
+            overflow: hidden;
+            background-color: #000000;
         }
         
         /* 
-          【最新CSSによるカメラ画面の強制全画面化】
-          AR.jsが内部でサイズ計算をミスして映像を画面外に飛ばしてしまうバグを、
-          CSSの絶対命令（!important）と、全画面固定（fixed）の力技で強制的にねじ伏せます。
+          【全画面強制フィットCSS】
+          JSでのリサイズ連打を止め、CSS側でカメラ（video）と
+          A-Frame（a-canvas）を、画面全体のサイズにガッチリと固定します。
         */
         video, .a-canvas, a-scene {
-            position: fixed !important;
+            position: absolute !important;
             top: 0 !important;
             left: 0 !important;
-            width: 100% !important;
-            height: 100% !important;
-            min-width: 100vw !important;
-            min-height: 100vh !important;
+            width: 100vw !important;
+            height: 100vh !important;
             object-fit: cover !important;
             margin: 0 !important;
             padding: 0 !important;
@@ -43,15 +45,12 @@
 </head>
 <body style="margin: 0; overflow: hidden;">
 
-    <!-- 
-      ブラウザの自動再生ブロックを完全に回避するための生ビデオ要素。
-      あらかじめHTMLに置いておくことで、AR.jsのバグによる「無言の起動拒否」を防ぎます。
-    -->
+    <!-- ブラウザの自動再生ブロックを回避する生ビデオ要素 -->
     <video id="arjs-webcam-video" autoplay playsinline webkit-playsinline muted loop></video>
 
     <!-- 
-      - sourceType: image に指定して、AR.js側の不完全な自動Webcam生成（サイズズレの主犯）を完全停止
-      - cameraParametersUrl: 外部サーバーがタイムアウト（ERR_TIMED_OUT）するのを防ぐためBase64データを内蔵
+      - sourceType: image に指定して、AR.js側の不完全な自動Webcam生成を停止
+      - cameraParametersUrl: 外部通信のタイムアウトを防ぐためBase64データを内蔵
     -->
     <a-scene 
         embedded 
@@ -64,13 +63,13 @@
             <a-asset-item id="zeiss-model" src="./assets/zeiss-eye.gltf"></a-asset-item>
         </a-assets>
 
-        <!-- 1. Mera用のカスタムマーカー設定（.pattファイルを使用） -->
+        <!-- 1. Mera用のカスタムマーカー設定 -->
         <a-marker type="pattern" url="./assets/pattern-marker-mera.patt">
             
             
         </a-marker>
 
-        <!-- 2. Zeiss用のカスタムマーカー設定（.pattファイルを使用） -->
+        <!-- 2. Zeiss用のカスタムマーカー設定 -->
         <a-marker type="pattern" url="./assets/pattern-marker-zeiss.patt">
             
             
@@ -82,14 +81,12 @@
     </a-scene>
 
     <script>
-        // ブラウザ標準の安全な手順でカメラを確実に起動させる処理
         window.addEventListener('DOMContentLoaded', () => {
             const video = document.getElementById('arjs-webcam-video');
 
-            // 端末ごとの最適な解像度で背面カメラを要求
             const constraints = {
                 video: {
-                    facingMode: 'environment', 
+                    facingMode: 'environment', // スマホの背面カメラを要求
                     width: { ideal: 1280 },
                     height: { ideal: 720 }
                 },
@@ -105,25 +102,14 @@
                     
                     const sceneEl = document.querySelector('a-scene');
                     
-                    // AR.jsが内部サイズを勝手に書き換えて黒画面にするのを強制ブロックする関数
-                    const lockStyle = () => {
-                        const canvas = sceneEl.querySelector('.a-canvas');
-                        if (canvas) {
-                            canvas.style.setProperty('width', '100vw', 'important');
-                            canvas.style.setProperty('height', '100vh', 'important');
-                        }
-                        video.style.setProperty('width', '100vw', 'important');
-                        video.style.setProperty('height', '100vh', 'important');
-                        window.dispatchEvent(new Event('resize'));
-                    };
-
                     const initToolkit = () => {
                         const arSystem = sceneEl.systems.arjs;
                         if (arSystem && arSystem.arToolkitSource) {
-                            // 起動した映像ストリームをAR.jsの追跡エンジンに強制バインド
+                            // 起動した正常なビデオ要素をAR.jsの追跡エンジンにバインド
                             arSystem.arToolkitSource.domElement = video;
                             arSystem.arToolkitSource.init(() => {
-                                lockStyle();
+                                // ループを起こさないよう、起動時（最初の1回だけ）リサイズイベントを発生
+                                window.dispatchEvent(new Event('resize'));
                             });
                         }
                     };
@@ -133,10 +119,6 @@
                     } else {
                         sceneEl.addEventListener('loaded', initToolkit);
                     }
-
-                    // バックグラウンドでのリサイズ暴走を検知し、常に全画面へ引き戻し続けます
-                    window.addEventListener('resize', lockStyle);
-                    setInterval(lockStyle, 1000);
                 };
             })
             .catch((err) => {
