@@ -5,30 +5,33 @@
     <meta name="viewport" content="width=device-width, initial-scale=1.0, user-scalable=no, minimum-scale=1.0, maximum-scale=1.0">
     <title>Web AR - Multi Marker Complete</title>
     
-    <!-- 安定版のライブラリ構成 -->
+    <!-- 安定動作実績のあるライブラリ構成 -->
     <script src="https://cloudflare.com"></script>
     <script src="https://unpkg.com"></script>
 
     <style>
-        /* 画面全体の余白をゼロにし、スクロールを完全に禁止 */
+        /* 画面全体の余白を完全にゼロにする */
         html, body {
-            margin: 0;
-            padding: 0;
-            width: 100%;
-            height: 100%;
-            overflow: hidden;
+            margin: 0 !important;
+            padding: 0 !important;
+            width: 100% !important;
+            height: 100% !important;
+            overflow: hidden !important;
             background-color: #000000;
         }
         
         /* 
-          【全画面強制フィットCSS】
-          JSでのリサイズ連打を止め、CSS側でカメラ（video）と
-          A-Frame（a-canvas）を、画面全体のサイズにガッチリと固定します。
+          【全画面固定CSS】
+          JS側のプロパティロックと組み合わせて、カメラ映像（video）と
+          3Dキャンバス（.a-canvas）を完全に画面全体に固定します。
         */
-        video, .a-canvas, a-scene {
-            position: absolute !important;
-            top: 0 !important;
-            left: 0 !important;
+        #arjs-webcam-video, 
+        video, 
+        .a-canvas, 
+        a-scene {
+            position: fixed !important;
+            top: 0px !important;
+            left: 0px !important;
             width: 100vw !important;
             height: 100vh !important;
             object-fit: cover !important;
@@ -49,7 +52,7 @@
     <video id="arjs-webcam-video" autoplay playsinline webkit-playsinline muted loop></video>
 
     <!-- 
-      - sourceType: image に指定して、AR.js側の不完全な自動Webcam生成を停止
+      - sourceType: image に指定して、AR.js側の不完全な自動カメラ生成を停止
       - cameraParametersUrl: 外部通信のタイムアウトを防ぐためBase64データを内蔵
     -->
     <a-scene 
@@ -81,12 +84,21 @@
     </a-scene>
 
     <script>
+        // 【超強力・書き換え禁止ハック】
+        // AR.jsが後からvideo要素の「style」プロパティを勝手に書き換えて下部にズラすのを完全に禁止（フリーズ）します。
+        const videoElement = document.getElementById('arjs-webcam-video');
+        Object.defineProperty(videoElement, 'style', {
+            writable: false,
+            configurable: false,
+            value: videoElement.style
+        });
+
         window.addEventListener('DOMContentLoaded', () => {
             const video = document.getElementById('arjs-webcam-video');
 
             const constraints = {
                 video: {
-                    facingMode: 'environment', // スマホの背面カメラを要求
+                    facingMode: 'environment', // スマホの背面カメラ
                     width: { ideal: 1280 },
                     height: { ideal: 720 }
                 },
@@ -102,13 +114,32 @@
                     
                     const sceneEl = document.querySelector('a-scene');
                     
+                    // キャンバス側の書き換え暴走も完全にロックする関数
+                    const lockCanvasStyle = () => {
+                        const canvas = sceneEl.querySelector('.a-canvas');
+                        if (canvas && !canvas.dataset.locked) {
+                            canvas.style.setProperty('width', '100vw', 'important');
+                            canvas.style.setProperty('height', '100vh', 'important');
+                            canvas.style.setProperty('top', '0px', 'important');
+                            canvas.style.setProperty('left', '0px', 'important');
+                            canvas.style.setProperty('position', 'fixed', 'important');
+                            
+                            // キャンバスのstyleプロパティも上書き禁止にする
+                            Object.defineProperty(canvas, 'style', {
+                                writable: false,
+                                configurable: false,
+                                value: canvas.style
+                            });
+                            canvas.dataset.locked = "true";
+                        }
+                    };
+
                     const initToolkit = () => {
                         const arSystem = sceneEl.systems.arjs;
                         if (arSystem && arSystem.arToolkitSource) {
-                            // 起動した正常なビデオ要素をAR.jsの追跡エンジンにバインド
                             arSystem.arToolkitSource.domElement = video;
                             arSystem.arToolkitSource.init(() => {
-                                // ループを起こさないよう、起動時（最初の1回だけ）リサイズイベントを発生
+                                lockCanvasStyle();
                                 window.dispatchEvent(new Event('resize'));
                             });
                         }
@@ -116,8 +147,12 @@
 
                     if (sceneEl.hasLoaded) {
                         initToolkit();
+                        lockCanvasStyle();
                     } else {
-                        sceneEl.addEventListener('loaded', initToolkit);
+                        sceneEl.addEventListener('loaded', () => {
+                            initToolkit();
+                            lockCanvasStyle();
+                        });
                     }
                 };
             })
