@@ -5,64 +5,129 @@
     <meta name="viewport" content="width=device-width, initial-scale=1.0, user-scalable=no, minimum-scale=1.0, maximum-scale=1.0">
     <title>Web AR - Multi Marker Complete</title>
     
-    <!-- A-Frame 最新安定版 -->
     <script src="https://cloudflare.com"></script>
-    <!-- 
-      【最重要】ブラウザに誤検知されない最新のAR規格「MindAR」を採用。
-      これにより、これまでの黒画面フリーズやカメラ起動しないバグを根本から完全に解決します。
-    -->
-    <script src="https://jsdelivr.net"></script>
+    <script src="https://unpkg.com"></script>
 
     <style>
         html, body {
             margin: 0; padding: 0; width: 100%; height: 100%;
             overflow: hidden; background-color: #000000;
         }
+        /* 
+          手動配置したビデオ要素を画面いっぱいに広げ、最背面に固定配置。
+          これにより、AR.jsの自動生成バグによる黒画面を物理的に防ぎます。
+        */
+        #arjs-webcam-video {
+            position: absolute !important;
+            top: 0 !important;
+            left: 0 !important;
+            width: 100vw !important;
+            height: 100vh !important;
+            object-fit: cover !important;
+            z-index: -2 !important;
+        }
+        .a-canvas {
+            z-index: -1 !important;
+        }
     </style>
 </head>
-<body>
+<body style="margin: 0; overflow: hidden;">
 
     <!-- 
-      MindARシーンの設定:
-      - imageTargetSrc: AR.jsのpattの代わりに、MindAR用のターゲット設定を行います。
-        (※現段階では既存の仕組みと互換性を持たせるため、最小限の設定にしています)
+      【重要】ブラウザの自動再生ブロックを完全に回避するための設定を網羅したビデオタグ。
+      AR.jsに自動生成させず、これを使って強制描画させます。
+    -->
+    <video id="arjs-webcam-video" autoplay playsinline webkit-playsinline muted loop></video>
+
+    <!-- 
+      sourceType: image に指定して、AR.js側の不完全な自動Webcam生成を「意図的に停止」させます。
+      カメラパラメータはBase64形式で内蔵。
     -->
     <a-scene 
-        mindar-image="imageTargetSrc: https://jsdelivr.net; maxTrack: 2;" 
         embedded 
-        color-space="sRGB" 
-        renderer="colorManagement: true, physicallyCorrectLights: true" 
-        vr-mode-ui="enabled: false" 
-        device-orientation-permission-ui="enabled: false">
-        
+        arjs="sourceType: image; debugUIEnabled: false; videoTexture: true; cameraParametersUrl: data:text/plain;base64,QVJDbgABAAAA8D8AAAAAAMU/AAAAAAAAwD8AAAAAAAAAAAAAgD8AAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAgD8AAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAA==;"
+        vr-mode-ui="enabled: false">
+
+        <!-- 3Dモデル（Assets）の事前読み込み -->
         <a-assets>
             <a-asset-item id="mera-model" src="./assets/mera-heart.gltf"></a-asset-item>
             <a-asset-item id="zeiss-model" src="./assets/zeiss-eye.gltf"></a-asset-item>
         </a-assets>
 
-        <a-camera position="0 0 0" look-controls="enabled: false"></a-camera>
+        <!-- 1. Mera用のカスタムマーカー設定 -->
+        <a-marker type="pattern" url="./assets/pattern-marker-mera.patt">
+            
+            
+        </a-marker>
 
-        <!-- 1. Mera用のマーカー設定 (targetIndex: 0) -->
-        
-            <a-gltf-model 
-                src="#mera-model" 
-                scale="0.5 0.5 0.5" 
-                position="0 0 0" 
-                rotation="0 0 0">
-            </a-gltf-model>
-        
+        <!-- 2. Zeiss用のカスタムマーカー設定 -->
+        <a-marker type="pattern" url="./assets/pattern-marker-zeiss.patt">
+            
+            
+        </a-marker>
 
-        <!-- 2. Zeiss用のマーカー設定 (targetIndex: 1) -->
-        
-            <a-gltf-model 
-                src="#zeiss-model" 
-                scale="0.5 0.5 0.5" 
-                position="0 0 0" 
-                rotation="0 0 0">
-            </a-gltf-model>
+        <!-- AR空間用カメラ -->
         
 
     </a-scene>
+
+    <script>
+        // ページ読み込み時に、ブラウザ標準の安全な手順でカメラを起動してビデオタグに流し込む
+        window.addEventListener('DOMContentLoaded', () => {
+            const video = document.getElementById('arjs-webcam-video');
+
+            const constraints = {
+                video: {
+                    facingMode: 'environment', // 背面カメラを優先
+                    width: { ideal: 1280 },
+                    height: { ideal: 720 }
+                },
+                audio: false
+            };
+
+            navigator.mediaDevices.getUserMedia(constraints)
+            .then((stream) => {
+                video.srcObject = stream;
+                
+                // 映像が実際に再生開始されたら、AR.jsの追跡対象にこのビデオ要素を強制設定する
+                video.onloadedmetadata = () => {
+                    video.play();
+                    
+                    const sceneEl = document.querySelector('a-scene');
+                    if (sceneEl) {
+                        sceneEl.addEventListener('loaded', () => {
+                            const arSystem = sceneEl.systems.arjs;
+                            if (arSystem && arSystem.arToolkitSource) {
+                                // AR.jsの内部エンジンに手動生成のビデオ要素を直接バインド
+                                arSystem.arToolkitSource.domElement = video;
+                                arSystem.arToolkitSource.init(() => {
+                                    window.dispatchEvent(new Event('resize'));
+                                });
+                            }
+                        });
+                        
+                        // すでにシーンがロード済みのケースの対策
+                        if (sceneEl.hasLoaded) {
+                            const arSystem = sceneEl.systems.arjs;
+                            if (arSystem && arSystem.arToolkitSource) {
+                                arSystem.arToolkitSource.domElement = video;
+                                arSystem.arToolkitSource.init(() => {
+                                    window.dispatchEvent(new Event('resize'));
+                                });
+                            }
+                        }
+                    }
+                    
+                    // 画面のサイズ崩れを防ぐためのリサイズ命令
+                    setTimeout(() => { window.dispatchEvent(new Event('resize')); }, 500);
+                    setTimeout(() => { window.dispatchEvent(new Event('resize')); }, 1500);
+                };
+            })
+            .catch((err) => {
+                console.error("Camera access error:", err);
+            });
+        });
+    </script>
 
 </body>
 </html>
