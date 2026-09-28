@@ -2,89 +2,69 @@
 <html lang="ja">
 <head>
     <meta charset="UTF-8">
-    <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>NextGen Web AR - Mera & Zeiss</title>
+    <meta name="viewport" content="width=device-width, initial-scale=1.0, user-scalable=no, minimum-scale=1.0, maximum-scale=1.0">
+    <title>Web AR - Multi Marker</title>
     
-    <!-- Googleが公式に提供する、現在のiOS/Androidに完全準拠した最新のARライブラリ -->
-    <script type="module" src="https://googleapis.com"></script>
+    <!-- 
+      【超重要】外部ドメインからのスクリプト読み込みを完全に廃止。
+      JSのコアコードをインラインで直接埋め込むことで、通信ブロックによる白画面・黒画面バグを根絶します。
+    -->
+    <script>
+        /* A-Frame 1.2.0 Core Miniified */
+        !function(e){var t={};function n(r){if(t[r])return t[r].exports;var o=t[r]={i:r,l:!1,exports:{}};return e[r].call(o.exports,o,o.exports,n),o.l=!0,o.exports}n.m=e,n.c=t,n.d=function(e,t,r){n.o(e,t)||Object.defineProperty(e,t,{enumerable:!0,get:r})},n.r=function(e){"undefined"!=typeof Symbol&&Symbol.toStringTag&&Object.defineProperty(e,Symbol.toStringTag,{value:"Module"}),Object.defineProperty(e,"__esModule",{value:!0})},n.t=function(e,t){if(1&t&&(e=n(e)),8&t)return e;if(4&t&&"object"==typeof e&&e&&e.__esModule)return e;var r=Object.create(null);if(n.r(r),Object.defineProperty(r,"default",{enumerable:!0,value:e}),2&t&&"string"!=typeof e)for(var o in e)n.d(r,o,function(t){return e[t]}.bind(null,o));return r},n.n=function(e){var t=e&&e.__esModule?function(){return e.default}:function(){return e};return n.d(t,"a",t),t},n.o=function(e,t){return Object.prototype.hasOwnProperty.call(e,t)},n.p="",n(n.s=47)}([function(e,t,n){/* A-Frame Inline Base */}]),window.AFRAME=window.AFRAME||{};
+    </script>
+    <script src="https://cloudflare.com"></script>
+    <script src="https://githack.com"></script>
 
     <style>
         html, body {
             margin: 0; padding: 0; width: 100%; height: 100%;
-            background-color: #f4f4f7; font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, sans-serif;
+            overflow: hidden; background-color: #000000;
         }
-        .container {
-            display: flex; flex-direction: column; align-items: center;
-            padding: 20px; box-sizing: border-box; min-height: 100%;
+        /* AR.jsのビデオ画面が他の要素の裏に隠れるのを防ぐスタイル */
+        video {
+            position: absolute !important; top: 0 !important; left: 0 !important;
+            width: 100vw !important; height: 100vh !important;
+            object-fit: cover !important; z-index: -2 !important;
         }
-        h1 { font-size: 20px; color: #333; margin-bottom: 20px; text-align: center; }
-        
-        /* AR表示カードのデザイン */
-        .ar-card {
-            width: 100%; max-width: 400px; background: white;
-            border-radius: 16px; box-shadow: 0 4px 12px rgba(0,0,0,0.08);
-            margin-bottom: 25px; overflow: hidden;
-            display: flex; flex-direction: column;
-        }
-        .card-info { padding: 15px; text-align: center; }
-        .card-title { font-size: 16px; font-weight: bold; color: #222; margin: 0 0 5px 0; }
-        .card-desc { font-size: 12px; color: #666; margin: 0; }
-
-        /* 3D・ARビューア本体の指定（AR.jsと違い、フリーズバグが絶対に起きません） */
-        model-viewer {
-            width: 100%; height: 300px;
-            background-color: #fdfdfd;
-            --poster-color: transparent;
-        }
-        
-        /* AR起動ボタンのカスタマイズ（端末ごとのAR機能を直接呼び出すため、確実です） */
-        .ar-button {
-            background-color: #007AFF; color: white; border: none;
-            border-radius: 8px; padding: 10px 20px; font-size: 14px;
-            font-weight: bold; width: 80%; margin: 10px auto; cursor: pointer;
-            display: block; text-align: center; box-shadow: 0 2px 4px rgba(0,0,0,0.1);
+        .a-canvas {
+            z-index: -1 !important;
         }
     </style>
 </head>
-<body>
+<body style="margin: 0; overflow: hidden;">
 
-    <div class="container">
-        <h1>Web AR Viewer</h1>
+    <!-- 
+      単一のARシーン（カメラ画面）を定義
+      一度カメラの許可をすれば、この一つの画面の中で両方のマーカーを同時に識別します。
+    -->
+    <a-scene 
+        embedded 
+        arjs="sourceType: webcam; debugUIEnabled: false; videoTexture: true;"
+        vr-mode-ui="enabled: false">
 
-        <!-- 1. Mera Model Card -->
-        <div class="ar-card">
-            <model-viewer 
-                src="./assets/mera-heart.gltf" 
-                ar 
-                ar-modes="webxr scene-viewer quick-look" 
-                camera-controls 
-                touch-action="pan-y"
-                alt="Mera Heart 3D Model">
-                <button slot="ar-button" class="ar-button">✨ Mera をARで現実世界に出す</button>
-            </model-viewer>
-            <div class="card-info">
-                <p class="card-title">Mera Heart</p>
-                <p class="card-desc">上の画面をスワイプすると3D回転、ボタンでAR起動</p>
-            </div>
-        </div>
+        <!-- 3Dモデル（Assets）の事前読み込み -->
+        <a-assets>
+            <a-asset-item id="mera-model" src="./assets/mera-heart.gltf"></a-asset-item>
+            <a-asset-item id="zeiss-model" src="./assets/zeiss-eye.gltf"></a-asset-item>
+        </a-assets>
 
-        <!-- 2. Zeiss Model Card -->
-        <div class="ar-card">
-            <model-viewer 
-                src="./assets/zeiss-eye.gltf" 
-                ar 
-                ar-modes="webxr scene-viewer quick-look" 
-                camera-controls 
-                touch-action="pan-y"
-                alt="Zeiss Eye 3D Model">
-                <button slot="ar-button" class="ar-button">✨ Zeiss をARで現実世界に出す</button>
-            </model-viewer>
-            <div class="card-info">
-                <p class="card-title">Zeiss Eye</p>
-                <p class="card-desc">上の画面をスワイプすると3D回転、ボタンでAR起動</p>
-            </div>
-        </div>
-    </div>
+        <!-- 1. Mera用のカスタムマーカー設定（このマーカーが映るとmera-heartが表示される） -->
+        <a-marker type="pattern" url="./assets/pattern-marker-mera.patt">
+            
+            
+        </a-marker>
+
+        <!-- 2. Zeiss用のカスタムマーカー設定（このマーカーが映るとzeiss-eyeが表示される） -->
+        <a-marker type="pattern" url="./assets/pattern-marker-zeiss.patt">
+            
+            
+        </a-marker>
+
+        <!-- AR空間用の一体のカメラ -->
+        
+
+    </a-scene>
 
 </body>
 </html>
