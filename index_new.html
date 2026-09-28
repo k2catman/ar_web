@@ -4,17 +4,25 @@
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0, user-scalable=no, minimum-scale=1.0, maximum-scale=1.0">
     <title>Web AR - Mera & Zeiss</title>
-    <!-- A-Frame ライブラリの読み込み -->
+    
+    <!-- 1. iOS/Android両対応の安定版 A-Frame (v1.4.2) を読み込み -->
     <script src="https://aframe.io"></script>
-    <!-- AR.js for A-Frame ライブラリの読み込み -->
+    
+    <!-- 2. 公式でメンテナンスされている最新安定版の AR.js (v3.4.5) を読み込み -->
     <script src="https://githack.com"></script>
 </head>
-<body style="margin: 0; overflow: hidden;">
+<body style="margin: 0; overflow: hidden; font-family: sans-serif;">
 
-    <!-- ARシーンの定義（デバッグ表示は無効、カメラの解像度等を最適化） -->
-    <a-scene embedded arjs="sourceType: webcam; debugUIEnabled: false; detectionMode: mono_and_matrix; matrixCodeType: 3x3;">
+    <!-- 
+      ARシーンの設定:
+      - videoTexture: true (iOSでの画面真っ白・フリーズを防ぐ必須設定)
+      - sourceWidth / sourceHeight (カメラ解像度を固定して起動を安定化)
+    -->
+    <a-scene 
+        embedded 
+        arjs="sourceType: webcam; debugUIEnabled: false; videoTexture: true; sourceWidth: 1280; sourceHeight: 720; displayWidth: 1280; displayHeight: 720;">
 
-        <!-- 資産（Assets）の事前読み込み定義 -->
+        <!-- 3Dモデル資産（Assets）の事前読み込み -->
         <a-assets>
             <a-asset-item id="mera-model" src="./assets/mera-heart.gltf"></a-asset-item>
             <a-asset-item id="zeiss-model" src="./assets/zeiss-eye.gltf"></a-asset-item>
@@ -22,14 +30,14 @@
 
         <!-- 1. Mera用のカスタムマーカー設定 -->
         <a-marker type="pattern" url="./assets/pattern-marker-mera.patt">
-            <!-- 3Dモデルの配置（サイズや角度は必要に応じて調整してください） -->
+            <!-- 3Dモデルの配置（表示されない場合は scale を大きくしてみてください） -->
             
             
         </a-marker>
 
         <!-- 2. Zeiss用のカスタムマーカー設定 -->
         <a-marker type="pattern" url="./assets/pattern-marker-zeiss.patt">
-            <!-- 3Dモデルの配置（サイズや角度は必要に応じて調整してください） -->
+            <!-- 3Dモデルの配置 -->
             
             
         </a-marker>
