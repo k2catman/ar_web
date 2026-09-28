@@ -3,18 +3,24 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0, user-scalable=no, minimum-scale=1.0, maximum-scale=1.0">
-    <title>Web AR - Multi Marker Fixed</title>
+    <title>Web AR - Multi Marker Complete</title>
     
-    <!-- 安定した信頼性の高い大手CDNからコアスクリプトのみを読み込み -->
+    <!-- 
+      【重要】ERR_NETWORK_CHANGED を引き起こす jsdelivr ドメインを完全に排除。
+      世界中で最もバックアップ網が強固な unpkg および cdnjs に接続先を全面刷新し、ネットワーク遮断を回避します。
+    -->
     <script src="https://cloudflare.com"></script>
-    <script src="https://jsdelivr.net"></script>
+    <script src="https://unpkg.com"></script>
 
     <style>
         html, body {
             margin: 0; padding: 0; width: 100%; height: 100%;
             overflow: hidden; background-color: #000000;
         }
-        /* カメラ映像（video要素）を確実に最背面に引き出すスタイル */
+        /* 
+          AR.jsが自動生成するカメラビデオ要素を画面最背面に強制的に引き伸ばし、
+          黒画面のままフリーズするバグをCSSの最優先命令（!important）で上書き解決します。
+        */
         video {
             position: absolute !important;
             top: 0 !important;
@@ -32,9 +38,8 @@
 <body style="margin: 0; overflow: hidden;">
 
     <!-- 
-      【最重要】
-      ERR_TIMED_OUTを起こしていた外部の「camera_para.dat」通信を完全に遮断するため、
-      AR.jsの初期設定に、独自に用意した安全な「Data URI形式（Base64）」のカメラパラメータデータを直接流し込みます。
+      外部通信によるERR_TIMED_OUTを完全に防ぐため、
+      カメラパラメータデータは、安全な内蔵「Base64（Data URI形式）」のまま固定して埋め込んでいます。
     -->
     <a-scene 
         embedded 
@@ -47,13 +52,13 @@
             <a-asset-item id="zeiss-model" src="./assets/zeiss-eye.gltf"></a-asset-item>
         </a-assets>
 
-        <!-- 1. Mera用のカスタムマーカー設定 -->
+        <!-- 1. Mera用のカスタムマーカー設定（ pattern-marker-mera.patt を検知すると3D表示 ） -->
         <a-marker type="pattern" url="./assets/pattern-marker-mera.patt">
             
             
         </a-marker>
 
-        <!-- 2. Zeiss用のカスタムマーカー設定 -->
+        <!-- 2. Zeiss用のカスタムマーカー設定（ pattern-marker-zeiss.patt を検知すると3D表示 ） -->
         <a-marker type="pattern" url="./assets/pattern-marker-zeiss.patt">
             
             
@@ -63,6 +68,21 @@
         
 
     </a-scene>
+
+    <script>
+        /* 
+          一部のスマホブラウザで、読み込み順のズレによってカメラ描画が黒く止まるのを防ぐため、
+          ページロード完了後と、さらに1秒後に「リサイズイベント」を強制的に発生させてカメラを叩き起こします。
+        */
+        window.addEventListener('load', function() {
+            setTimeout(function() {
+                window.dispatchEvent(new Event('resize'));
+            }, 500);
+            setTimeout(function() {
+                window.dispatchEvent(new Event('resize'));
+            }, 1500);
+        });
+    </script>
 
 </body>
 </html>
