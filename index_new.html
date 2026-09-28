@@ -5,36 +5,49 @@
     <meta name="viewport" content="width=device-width, initial-scale=1.0, user-scalable=no, minimum-scale=1.0, maximum-scale=1.0">
     <title>Web AR - Multi Marker Complete</title>
     
-    <!-- 
-      【重要】エラーを連発していた古い AR.js を完全に排除。
-      最新のブラウザ環境（iOS 17-19 / 各種PC）に100%準拠した A-Frame 最新安定版（v1.6.0）のみを使用し、
-      ブラウザ標準の WebXR 機能を使ってカメラを安全・確実に起動させます。
-    -->
+    <!-- 安定動作する最新のA-Frame 1.6.0を採用 -->
     <script src="https://cloudflare.com"></script>
 
     <style>
         html, body {
             margin: 0; padding: 0; width: 100%; height: 100%;
             overflow: hidden; background-color: #000000;
+            font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, sans-serif;
         }
-        /* カメラ起動時のUIを画面に馴染ませる設定 */
-        .ar-overlay {
-            position: fixed; top: 10px; left: 10px; z-index: 999;
-            background: rgba(0,0,0,0.6); color: white; padding: 8px 12px;
-            border-radius: 4px; font-size: 12px; pointer-events: none;
+        
+        /* 
+          ブラウザの自動起動制限を解除するための物理ボタン画面。
+          これをタップさせることで、真っ黒な画面を強制解除してカメラを起動させます。
+        */
+        #ar-start-overlay {
+            position: fixed; top: 0; left: 0; width: 100vw; height: 100vh;
+            background-color: rgba(20, 20, 20, 0.9); z-index: 99999;
+            display: flex; flex-direction: column; justify-content: center; align-items: center;
         }
+        #ar-button {
+            padding: 20px 40px; font-size: 20px; font-weight: bold;
+            background-color: #007AFF; color: white; border: none; border-radius: 12px;
+            cursor: pointer; box-shadow: 0 4px 12px rgba(0,122,255,0.4);
+            transition: background-color 0.2s;
+        }
+        #ar-button:active { background-color: #0051A8; }
+        .info-text { margin-top: 15px; color: #ccc; font-size: 14px; text-align: center; }
     </style>
 </head>
 <body style="margin: 0; overflow: hidden;">
 
-    <div class="ar-overlay">AR Mode Active: マーカーをかざしてください</div>
+    <!-- 起動用ボタンの画面 -->
+    <div id="ar-start-overlay">
+        <button id="ar-button" onclick="activateAR()">ARカメラを起動する</button>
+        <div class="info-text">ボタンを押してカメラを許可してください</div>
+    </div>
 
     <!-- 
-      A-Frame標準のWebXR（画像トラッキング機能）を有効化。
-      これまでの古いAR.jsと異なり、ブラウザのセキュリティ機能にブロックされません。
+      webxrコンポーネント: 
+      - referenceSpaceType: local (スマホ・PCのカメラ位置を基準に設定)
     -->
     <a-scene 
-        webxr="optionalFeatures: image-tracking; requiredFeatures: local-floor;"
+        webxr="optionalFeatures: image-tracking; requiredFeatures: local; referenceSpaceType: local;"
         vr-mode-ui="enabled: false">
 
         <!-- 3Dモデル（Assets）の事前読み込み -->
@@ -43,19 +56,13 @@
             <a-asset-item id="zeiss-model" src="./assets/zeiss-eye.gltf"></a-asset-item>
         </a-assets>
 
-        <!-- 
-          1. Mera用のマーカー設定 
-          【解説】WebXR規格では、.pattの代わりにマーカーとして使う「画像そのもののURL（pngやjpg）」を指定します。
-          ここでは既存のassetsフォルダ構造を活かせるよう、画像パスを指定する形にしています。
-        -->
+        <!-- 1. Mera用のマーカー設定（ pattern-marker-mera.png などの画像を指定してください ） -->
         
-            
             
         
 
-        <!-- 2. Zeiss用のマーカー設定 -->
+        <!-- 2. Zeiss用のマーカー設定 （ pattern-marker-zeiss.png などの画像を指定してください ） -->
         
-            
             
         
 
@@ -63,6 +70,20 @@
         
 
     </a-scene>
+
+    <script>
+        function activateAR() {
+            const sceneEl = document.querySelector('a-scene');
+            
+            // ユーザーのタップを検知して、A-Frameの内蔵WebXR（ARモード）を強制スタート
+            if (sceneEl) {
+                sceneEl.enterVR(); // WebXR規格のARモードを起動
+                
+                // ボタン画面を消してカメラ映像を最前面に出す
+                document.getElementById('ar-start-overlay').style.display = 'none';
+            }
+        }
+    </script>
 
 </body>
 </html>
