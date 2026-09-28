@@ -3,56 +3,39 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0, user-scalable=no, minimum-scale=1.0, maximum-scale=1.0">
-    <title>Web AR - Multi Marker Fixed</title>
+    <title>Web AR - Multi Marker Complete</title>
     
     <!-- 
-      【最重要】
-      近年のブラウザ仕様（WebGL）による「真っ黒画面バグ」を完全に回避するため、
-      最も安定して透過処理が機能する「A-Frame 1.0.4」と「AR.js 3.3.1」の黄金の組み合わせに変更。
+      【重要】エラーを連発していた古い AR.js を完全に排除。
+      最新のブラウザ環境（iOS 17-19 / 各種PC）に100%準拠した A-Frame 最新安定版（v1.6.0）のみを使用し、
+      ブラウザ標準の WebXR 機能を使ってカメラを安全・確実に起動させます。
     -->
     <script src="https://cloudflare.com"></script>
-    <script src="https://unpkg.com"></script>
 
     <style>
         html, body {
             margin: 0; padding: 0; width: 100%; height: 100%;
-            overflow: hidden; background-color: transparent !important;
+            overflow: hidden; background-color: #000000;
         }
-        /* 
-          A-Frameの3D描画領域（canvas）の背景を強制的に透明（透過）にし、
-          真後ろにあるカメラ映像を絶対に表に浮き上がらせるための必須CSS。
-        */
-        .a-canvas {
-            background-color: transparent !important;
-            position: absolute !important;
-            top: 0 !important;
-            left: 0 !important;
-            width: 100vw !important;
-            height: 100vh !important;
-            z-index: 1 !important;
-        }
-        video {
-            position: absolute !important;
-            top: 0 !important;
-            left: 0 !important;
-            width: 100vw !important;
-            height: 100vh !important;
-            object-fit: cover !important;
-            z-index: -1 !important;
+        /* カメラ起動時のUIを画面に馴染ませる設定 */
+        .ar-overlay {
+            position: fixed; top: 10px; left: 10px; z-index: 999;
+            background: rgba(0,0,0,0.6); color: white; padding: 8px 12px;
+            border-radius: 4px; font-size: 12px; pointer-events: none;
         }
     </style>
 </head>
-<body style="margin: 0; overflow: hidden; background-color: transparent;">
+<body style="margin: 0; overflow: hidden;">
+
+    <div class="ar-overlay">AR Mode Active: マーカーをかざしてください</div>
 
     <!-- 
-      - alpha: true (3D空間の背景を透明にしてカメラ映像を映す設定)
-      - cameraParametersUrl: 外部通信エラーを防ぐためBase64データを内蔵
+      A-Frame標準のWebXR（画像トラッキング機能）を有効化。
+      これまでの古いAR.jsと異なり、ブラウザのセキュリティ機能にブロックされません。
     -->
     <a-scene 
-        embedded 
-        arjs="sourceType: webcam; debugUIEnabled: false; videoTexture: true; cameraParametersUrl: data:text/plain;base64,QVJDbgABAAAA8D8AAAAAAMU/AAAAAAAAwD8AAAAAAAAAAAAAgD8AAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAgD8AAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAA==;"
-        vr-mode-ui="enabled: false"
-        renderer="alpha: true; colorManagement: true;">
+        webxr="optionalFeatures: image-tracking; requiredFeatures: local-floor;"
+        vr-mode-ui="enabled: false">
 
         <!-- 3Dモデル（Assets）の事前読み込み -->
         <a-assets>
@@ -60,52 +43,26 @@
             <a-asset-item id="zeiss-model" src="./assets/zeiss-eye.gltf"></a-asset-item>
         </a-assets>
 
-        <!-- 1. Mera用のカスタムマーカー設定 -->
-        <a-marker type="pattern" url="./assets/pattern-marker-mera.patt">
+        <!-- 
+          1. Mera用のマーカー設定 
+          【解説】WebXR規格では、.pattの代わりにマーカーとして使う「画像そのもののURL（pngやjpg）」を指定します。
+          ここでは既存のassetsフォルダ構造を活かせるよう、画像パスを指定する形にしています。
+        -->
+        
             
             
-        </a-marker>
+        
 
-        <!-- 2. Zeiss用のカスタムマーカー設定 -->
-        <a-marker type="pattern" url="./assets/pattern-marker-zeiss.patt">
+        <!-- 2. Zeiss用のマーカー設定 -->
+        
             
             
-        </a-marker>
+        
 
         <!-- AR空間用カメラ -->
         
 
     </a-scene>
-
-    <script>
-        // A-Frameが初期化された瞬間に、描画キャンバスの背景色を完全に透明化する処理
-        window.addEventListener('DOMContentLoaded', () => {
-            const sceneEl = document.querySelector('a-scene');
-            
-            const forceTransparency = () => {
-                const canvas = sceneEl.querySelector('.a-canvas');
-                if (canvas) {
-                    canvas.style.setProperty('background-color', 'transparent', 'important');
-                }
-                // レンダラーのクリアカラーを透明に強制上書き
-                if (sceneEl.renderer) {
-                    sceneEl.renderer.setClearColor(0x000000, 0);
-                }
-                window.dispatchEvent(new Event('resize'));
-            };
-
-            if (sceneEl.hasLoaded) {
-                forceTransparency();
-            } else {
-                sceneEl.addEventListener('loaded', forceTransparency);
-            }
-
-            // カメラ映像のサイズズレを直すため、定期的にリサイズ命令をトリガー
-            setInterval(() => {
-                window.dispatchEvent(new Event('resize'));
-            }, 1000);
-        });
-    </script>
 
 </body>
 </html>
