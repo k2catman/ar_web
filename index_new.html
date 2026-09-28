@@ -2,162 +2,42 @@
 <html lang="ja">
 <head>
     <meta charset="UTF-8">
-    <meta name="viewport" content="width=device-width, initial-scale=1.0, user-scalable=no">
-    <title>MindAR Custom Canvas + Motion Permission</title>
-    
-    <!-- A-Frame -->
-    <script src="https://aframe.io/releases/1.4.0/aframe.min.js"></script>
-    <!-- MindAR (A-Frame 1.4.0に対応した1.2.5に変更) -->
-    <script src="https://jsdelivr.net"></script>
-    
-    <style>
-        body {
-            margin: 0;
-            overflow: hidden;
-            background: #000;
-        }
-        #start-overlay {
-            position: fixed;
-            top: 0;
-            left: 0;
-            width: 100%;
-            height: 100%;
-            background: #111;
-            display: flex;
-            justify-content: center;
-            align-items: center;
-            z-index: 99999;
-        }
-        #start-button {
-            padding: 15px 30px;
-            font-size: 18px;
-            background: #0077ff;
-            color: white;
-            border: none;
-            border-radius: 30px;
-            cursor: pointer;
-        }
-        #ui {
-            position: absolute;
-            top: 10px;
-            left: 50%;
-            transform: translateX(-50%);
-            background: rgba(0, 0, 0, 0.8);
-            color: white;
-            padding: 10px 20px;
-            border-radius: 20px;
-            font-size: 14px;
-            z-index: 9999;
-            display: none;
-        }
-        #camera-canvas {
-            position: fixed;
-            top: 0;
-            left: 0;
-            width: 100vw;
-            height: 100vh;
-            z-index: 1;
-        }
-        a-scene {
-            position: fixed;
-            top: 0;
-            left: 0;
-            width: 100vw;
-            height: 100vh;
-            z-index: 2;
-        }
-    </style>
+    <meta name="viewport" content="width=device-width, initial-scale=1.0, user-scalable=no, minimum-scale=1.0, maximum-scale=1.0">
+    <title>Web AR - Mera & Zeiss</title>
+    <!-- A-Frame ライブラリの読み込み -->
+    <script src="https://aframe.io"></script>
+    <!-- AR.js for A-Frame ライブラリの読み込み -->
+    <script src="https://githack.com"></script>
 </head>
-<body>
+<body style="margin: 0; overflow: hidden;">
 
-    <div id="start-overlay">
-        <button id="start-button">カメラを起動する</button>
-    </div>
-    
-    <div id="ui">ターゲットを映してください</div>
-    
-    <canvas id="camera-canvas"></canvas>
-    
-    <a-scene mindar-image="imageTargetSrc: https://cdn.jsdelivr.net/gh/hiukim/mind-ar-js@master/samples/image-tracking/assets/card.mind; autoStart: false;" embedded vr-mode-ui="enabled: false" loading-screen="enabled: false">
-        <a-camera look-controls="enabled: false"></a-camera>
+    <!-- ARシーンの定義（デバッグ表示は無効、カメラの解像度等を最適化） -->
+    <a-scene embedded arjs="sourceType: webcam; debugUIEnabled: false; detectionMode: mono_and_matrix; matrixCodeType: 3x3;">
+
+        <!-- 資産（Assets）の事前読み込み定義 -->
+        <a-assets>
+            <a-asset-item id="mera-model" src="./assets/mera-heart.gltf"></a-asset-item>
+            <a-asset-item id="zeiss-model" src="./assets/zeiss-eye.gltf"></a-asset-item>
+        </a-assets>
+
+        <!-- 1. Mera用のカスタムマーカー設定 -->
+        <a-marker type="pattern" url="./assets/pattern-marker-mera.patt">
+            <!-- 3Dモデルの配置（サイズや角度は必要に応じて調整してください） -->
+            
+            
+        </a-marker>
+
+        <!-- 2. Zeiss用のカスタムマーカー設定 -->
+        <a-marker type="pattern" url="./assets/pattern-marker-zeiss.patt">
+            <!-- 3Dモデルの配置（サイズや角度は必要に応じて調整してください） -->
+            
+            
+        </a-marker>
+
+        <!-- AR用のカメラ配置 -->
         
-        
-            <a-box position="0 0 0.1" scale="0.2 0.2 0.2" color="#00aaff"></a-box>
-        
+
     </a-scene>
 
-    <script>
-        const startOverlay = document.getElementById('start-overlay');
-        const startButton = document.getElementById('start-button');
-        const ui = document.getElementById('ui');
-        const cameraCanvas = document.getElementById('camera-canvas');
-        const ctx = cameraCanvas.getContext('2d');
-
-        // iOSのモーションセンサー許可要求
-        async function requestMotionPermission() {
-            if (typeof DeviceMotionEvent !== "undefined" && typeof DeviceMotionEvent.requestPermission === "function") {
-                try {
-                    const state = await DeviceMotionEvent.requestPermission();
-                    console.log("Motion permission:", state);
-                } catch (e) {
-                    console.log("Motion permission error:", e);
-                }
-            }
-        }
-
-        // 開始ボタンのクリックイベント
-        startButton.addEventListener('click', async () => {
-            startOverlay.style.display = 'none';
-            ui.style.display = 'block';
-
-            // iOSのモーションセンサー許可を要求
-            await requestMotionPermission();
-
-            const sceneEl = document.querySelector('a-scene');
-
-            // 自前でカメラストリーム取得
-            try {
-                const stream = await navigator.mediaDevices.getUserMedia({ 
-                    video: { facingMode: "environment" } 
-                });
-                
-                const video = document.createElement("video");
-                video.srcObject = stream;
-                video.playsInline = true;
-                video.muted = true;
-                await video.play();
-
-                cameraCanvas.width = window.innerWidth;
-                cameraCanvas.height = window.innerHeight;
-
-                // キャンバスへの描画ループ
-                function drawCamera() {
-                    ctx.drawImage(video, 0, 0, cameraCanvas.width, cameraCanvas.height);
-                    requestAnimationFrame(drawCamera);
-                }
-                drawCamera();
-
-                // MindARのシステムにカスタムビデオを渡して開始
-                sceneEl.addEventListener("renderstart", () => {
-                    const arSystem = sceneEl.systems["mindar-image-system"];
-                    arSystem.video = video;
-                    arSystem.start();
-                });
-
-            } catch (err) {
-                console.error("カメラの起動に失敗しました:", err);
-            }
-        });
-
-        // ターゲット検出・ロストのイベントリスナー
-        document.querySelectorAll('[mindar-image-target]').forEach((target, index) => {
-            target.addEventListener("targetFound", () => {
-                ui.innerText = `ターゲット ${index + 1} を検出しました`;
-            });
-            target.addEventListener("targetLost", () => {
-                ui.innerText = "ターゲットを映してください";
-            });
-        });
-    </script>
 </body>
 </html>
