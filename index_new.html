@@ -35,6 +35,11 @@
           id="zeiss-eye-model"
           src="./assets/zeiss-eye.glb"
         ></a-asset-item>
+        <!-- 追加: C-Arm モデル -->
+        <a-asset-item
+          id="c-arm-model"
+          src="./assets/c-arm.glb"
+        ></a-asset-item>
       </a-assets>
 
       <!-- Mera heart marker -->
@@ -43,12 +48,7 @@
         url="./assets/pattern-marker-mera.patt"
         emitevents="true"
       >
-        <a-entity
-          gltf-model="#mera-heart-model"
-          position="0 0 0"
-          rotation="0 0 0"
-          scale="0.5 0.5 0.5"
-        ></a-entity>
+        
       </a-marker>
 
       <!-- Zeiss eye marker -->
@@ -57,16 +57,20 @@
         url="./assets/pattern-marker-zeiss.patt"
         emitevents="true"
       >
-        <a-entity
-          gltf-model="#zeiss-eye-model"
-          position="0 0 0"
-          rotation="0 0 0"
-          scale="0.5 0.5 0.5"
-        ></a-entity>
+        
+      </a-marker>
+
+      <!-- 追加: C-Arm マーカー -->
+      <a-marker
+        type="pattern"
+        url="./assets/pattern-marker-c_arm.patt"
+        emitevents="true"
+      >
+        
       </a-marker>
 
       <!-- Camera -->
-      <a-entity camera></a-entity>
+      
     </a-scene>
   </body>
 </html>
